@@ -1,52 +1,74 @@
-import os
-import tempfile
 import pytest
-from storage.context_manager import ContextManager
 
 
-@pytest.fixture
-def db():
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        path = f.name
-    cm = ContextManager(path)
-    yield cm
-    cm.close()
-    os.unlink(path)
+@pytest.mark.integration
+class TestContextManager:
+    """Test suite for ContextManager (SQLite-based)."""
 
+    def test_add_and_get_messages(self, context_manager):
+        """Test adding messages and retrieving context."""
+        context_manager.add_message("chat1", "user1", "item1", "user", "hello")
+        context_manager.add_message("chat1", "user1", "item1", "assistant", "hi there")
+        msgs = context_manager.get_context("chat1")
+        assert len(msgs) == 2
+        assert msgs[0]["role"] == "user"
+        assert msgs[1]["content"] == "hi there"
 
-def test_add_and_get_messages(db):
-    db.add_message("chat1", "user1", "item1", "user", "hello")
-    db.add_message("chat1", "user1", "item1", "assistant", "hi there")
-    msgs = db.get_context("chat1")
-    assert len(msgs) == 2
-    assert msgs[0]["role"] == "user"
-    assert msgs[1]["content"] == "hi there"
+    def test_get_context_empty(self, context_manager):
+        """Test getting context for non-existent chat returns empty list."""
+        msgs = context_manager.get_context("nonexistent")
+        assert msgs == []
 
+    @pytest.mark.parametrize(
+        "initial_count,increments,final_count",
+        [
+            (0, [1, 1], 2),
+            (0, [1, 1, 1, 1, 1], 5),
+            (3, [1], 4),
+        ],
+    )
+    def test_bargain_count_tracking(
+        self, context_manager, initial_count, increments, final_count
+    ):
+        """Test bargain count tracking with various increment patterns."""
+        chat_id = "chat1"
+        for _ in range(initial_count):
+            context_manager.increment_bargain_count(chat_id)
+        assert context_manager.get_bargain_count(chat_id) == initial_count
 
-def test_get_context_empty(db):
-    msgs = db.get_context("nonexistent")
-    assert msgs == []
+        for _ in increments:
+            context_manager.increment_bargain_count(chat_id)
+        assert context_manager.get_bargain_count(chat_id) == final_count
 
+    def test_item_cache(self, context_manager):
+        """Test item caching and retrieval."""
+        context_manager.save_item(
+            "item1", {"title": "iPhone", "price": 4500}, 4500, "test desc"
+        )
+        item = context_manager.get_item("item1")
+        assert item["title"] == "iPhone"
+        assert context_manager.get_item("nonexistent") is None
 
-def test_bargain_count(db):
-    assert db.get_bargain_count("chat1") == 0
-    db.increment_bargain_count("chat1")
-    assert db.get_bargain_count("chat1") == 1
-    db.increment_bargain_count("chat1")
-    assert db.get_bargain_count("chat1") == 2
-
-
-def test_item_cache(db):
-    db.save_item("item1", {"title": "iPhone", "price": 4500}, 4500, "test desc")
-    item = db.get_item("item1")
-    assert item["title"] == "iPhone"
-    assert db.get_item("nonexistent") is None
-
-
-def test_message_auto_cleanup(db):
-    db.max_history = 5
-    for i in range(10):
-        db.add_message("chat1", "u1", "i1", "user", f"msg{i}")
-    msgs = db.get_context("chat1")
-    assert len(msgs) == 5
-    assert msgs[0]["content"] == "msg5"
+    @pytest.mark.parametrize(
+        "max_history,add_count,expected_count,expected_first_msg",
+        [
+            (5, 10, 5, "msg5"),
+            (3, 7, 3, "msg4"),
+            (10, 5, 5, "msg0"),
+        ],
+    )
+    def test_message_auto_cleanup(
+        self,
+        context_manager,
+        max_history,
+        add_count,
+        expected_count,
+        expected_first_msg,
+    ):
+        """Test automatic message cleanup when exceeding max_history."""
+        context_manager.max_history = max_history
+        for i in range(add_count):
+            context_manager.add_message("chat1", "u1", "i1", "user", f"msg{i}")
+        msgs = context_manager.get_context("chat1")
+        assert len(msgs) == expected_count
+        assert msgs[0]["content"] == expected_first_msg

@@ -117,3 +117,100 @@ logging:
 """
     config_path.write_text(config_content)
     return config_path
+
+
+@pytest.fixture
+def device_id() -> str:
+    """Standard device ID for testing."""
+    return "test-device-123"
+
+
+@pytest.fixture
+def app_key_ws() -> str:
+    """App key for WebSocket tests."""
+    return "444e9908a51d1cb236a27862abc769c9"
+
+
+@pytest.fixture
+def app_key_api() -> str:
+    """App key for API tests."""
+    return "34839810"
+
+
+@pytest.fixture
+def seller_id() -> str:
+    """Standard seller user ID for testing."""
+    return "seller123"
+
+
+@pytest.fixture
+def buyer_id() -> str:
+    """Standard buyer user ID for testing."""
+    return "buyer789"
+
+
+@pytest.fixture
+def chat_id() -> str:
+    """Standard chat ID for testing."""
+    return "chat456"
+
+
+@pytest.fixture
+def sample_cookies_str() -> str:
+    """Sample cookie string for testing."""
+    return "cookie1=value1; cookie2=value2; session_id=test_session_123"
+
+
+@pytest.fixture
+def token_manager(device_id):
+    """Factory fixture creating TokenManager instances."""
+    from auth.token_manager import TokenManager
+
+    return TokenManager(cookies_str="test=1", device_id=device_id)
+
+
+@pytest.fixture
+def cookie_manager(test_data_dir):
+    """Factory fixture creating CookieManager instances."""
+    from auth.cookie_manager import CookieManager
+
+    return CookieManager(data_dir=str(test_data_dir))
+
+
+@pytest.fixture
+def websocket_channel(device_id):
+    """Create WebSocketChannel instance for testing."""
+    from core.websocket_channel import WebSocketChannel
+
+    ch = WebSocketChannel.__new__(WebSocketChannel)
+    ch.token = "test_token"
+    ch.device_id = device_id
+    ch.my_id = "seller123"
+    return ch
+
+
+@pytest.fixture
+def context_manager(test_data_dir):
+    """Create ContextManager instance for testing."""
+    from storage.context_manager import ContextManager
+
+    db_path = test_data_dir / "test.db"
+    cm = ContextManager(str(db_path))
+    yield cm
+    cm.close()
+
+
+@pytest.fixture
+def intent_router():
+    """Create IntentRouter instance for testing."""
+    from agents.router import IntentRouter
+
+    return IntentRouter()
+
+
+@pytest.fixture
+def price_agent():
+    """Create PriceAgent instance for testing."""
+    from agents.price_agent import PriceAgent
+
+    return PriceAgent()
