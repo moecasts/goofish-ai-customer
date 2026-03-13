@@ -14,6 +14,7 @@
 | 存储 | SQLite | 对话历史、议价计数、商品缓存 |
 | 配置 | PyYAML + python-dotenv | YAML 配置 + .env 环境变量 |
 | 日志 | loguru | 终端输出 + 按天轮转文件日志 |
+| 代码质量 | Ruff + Lefthook | 自动格式化 + Git Hooks |
 
 ## 项目结构
 
@@ -57,11 +58,50 @@ goofish-customer-skill/
 
 ### 1. 安装依赖
 
+**先安装 uv（推荐）：**
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-playwright install chromium
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 或使用 Homebrew
+brew install uv
+
+# 或使用 pip
+pip install uv
+```
+
+**方式一：一键安装（推荐）**
+
+```bash
+make install
+```
+
+**方式二：手动安装**
+
+```bash
+uv pip sync requirements.txt
+uv run playwright install chromium
+uv run lefthook install
+```
+
+**依赖管理说明：**
+- `pyproject.toml` - 依赖声明源（添加/删除依赖时修改这里）
+- `requirements.txt` - 从 `pyproject.toml` 自动生成（运行 `make sync-requirements`）
+- 使用 uv 管理依赖，比 pip 快 10-100 倍
+- Makefile 使用 `uv run` 自动管理虚拟环境
+- Lefthook 会在每次 `git commit` 时自动运行 `ruff format` 和 `ruff check`
+- 代码格式化问题会自动修复，严重错误会阻止提交
+- 手动执行：`make format` 或 `make check`
+
+**更新依赖流程：**
+```bash
+# 1. 在 pyproject.toml 中添加/修改依赖
+# 2. 生成新的 requirements.txt
+make sync-requirements
+
+# 3. 安装更新后的依赖
+make install-deps
 ```
 
 ### 2. 配置环境变量

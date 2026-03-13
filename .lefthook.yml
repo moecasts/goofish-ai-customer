@@ -1,0 +1,12 @@
+pre-commit:
+  parallel: false
+  commands:
+    ruff-format:
+      run: ruff format {staged_files}
+      glob: "*.py"
+      stage_fixed: true
+
+    ruff-check:
+      run: ruff check {staged_files} --fix
+      glob: "*.py"
+      stage_fixed: true

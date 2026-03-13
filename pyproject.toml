@@ -1,0 +1,23 @@
+[project]
+name = "goofish-ai-customer"
+version = "1.0.0"
+description = "AI customer service for Goofish"
+requires-python = ">=3.11"
+dependencies = [
+    "websockets>=12.0",
+    "playwright>=1.40.0",
+    "httpx>=0.25.0",
+    "openai>=1.12.0",
+    "loguru>=0.7.0",
+    "PyYAML>=6.0",
+    "python-dotenv>=1.0.0",
+    "ruff>=0.8.0",
+    "lefthook>=0.8.0",
+]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

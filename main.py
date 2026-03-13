@@ -106,6 +106,9 @@ class GoofishCustomerService:
         return {}
 
     async def _on_message(self, parsed: dict):
+        if self.channel is None:
+            raise RuntimeError("Channel must be active when receiving messages")
+
         chat_id = parsed["chat_id"]
         sender_id = parsed["sender_id"]
         content = parsed["content"]
@@ -191,9 +194,16 @@ class GoofishCustomerService:
                         await asyncio.sleep(30)
                         continue
 
+                # Verify token is available
+                token = self.token_manager.current_token
+                if not token:
+                    logger.error("Token is None, cannot create WebSocket channel")
+                    await asyncio.sleep(30)
+                    continue
+
                 # Create WebSocket channel
                 self.channel = WebSocketChannel(
-                    token=self.token_manager.current_token,
+                    token=token,
                     cookies_str=self.cookie_manager.get_cookies_str(),
                     device_id=self.device_id,
                     my_id=self.my_id,
