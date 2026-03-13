@@ -1,6 +1,6 @@
 llm:
-  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-  model: "qwen-max"
+  base_url: "https://open.bigmodel.cn/api/paas/v4/"
+  model: "glm-4.7-flash"
 
 reply:
   max_length: 100
