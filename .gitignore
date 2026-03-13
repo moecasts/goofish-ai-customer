@@ -9,3 +9,10 @@ dist/
 build/
 .venv/
 venv/
+
+# Coverage reports
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+.pytest_cache/
