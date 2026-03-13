@@ -44,7 +44,9 @@ class IntentRouter:
 
         return None
 
-    async def route(self, user_msg: str, item_desc: str = "", context: str = "", **kwargs) -> str:
+    async def route(
+        self, user_msg: str, item_desc: str = "", context: str = "", **kwargs
+    ) -> str:
         # 一级：关键词匹配
         intent = self.keyword_match(user_msg)
         if intent:

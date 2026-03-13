@@ -28,7 +28,9 @@ class BrowserChannel(MessageChannel):
         try:
             input_selector = 'textarea, [contenteditable="true"], input[type="text"]'
             await self.page.fill(input_selector, content)
-            send_btn = await self.page.query_selector('button:has-text("Send"), button:has-text("发送")')
+            send_btn = await self.page.query_selector(
+                'button:has-text("Send"), button:has-text("发送")'
+            )
             if send_btn:
                 await send_btn.click()
             else:
@@ -44,13 +46,17 @@ class BrowserChannel(MessageChannel):
             try:
                 # This is a simplified implementation
                 # Real implementation needs to match the actual DOM structure
-                elements = await self.page.query_selector_all('[class*="message-content"]')
+                elements = await self.page.query_selector_all(
+                    '[class*="message-content"]'
+                )
                 for el in elements:
                     text = await el.inner_text()
                     msg_id = hash(text)
                     if msg_id not in seen_messages:
                         seen_messages.add(msg_id)
-                        await on_message({"content": text, "chat_id": "", "sender_id": ""})
+                        await on_message(
+                            {"content": text, "chat_id": "", "sender_id": ""}
+                        )
             except Exception as e:
                 logger.debug(f"Browser poll error: {e}")
             await asyncio.sleep(self._poll_interval)

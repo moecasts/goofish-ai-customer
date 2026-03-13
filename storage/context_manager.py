@@ -2,7 +2,6 @@
 
 import json
 import sqlite3
-from datetime import datetime
 
 
 class ContextManager:
@@ -44,7 +43,9 @@ class ContextManager:
         """)
         self.conn.commit()
 
-    def add_message(self, chat_id: str, user_id: str, item_id: str, role: str, content: str):
+    def add_message(
+        self, chat_id: str, user_id: str, item_id: str, role: str, content: str
+    ):
         cur = self.conn.cursor()
         cur.execute(
             "INSERT INTO messages (chat_id, user_id, item_id, role, content) VALUES (?, ?, ?, ?, ?)",
@@ -73,11 +74,15 @@ class ContextManager:
             "SELECT role, content FROM messages WHERE chat_id = ? ORDER BY timestamp ASC",
             (chat_id,),
         )
-        return [{"role": row["role"], "content": row["content"]} for row in cur.fetchall()]
+        return [
+            {"role": row["role"], "content": row["content"]} for row in cur.fetchall()
+        ]
 
     def get_bargain_count(self, chat_id: str) -> int:
         cur = self.conn.cursor()
-        cur.execute("SELECT count FROM chat_bargain_counts WHERE chat_id = ?", (chat_id,))
+        cur.execute(
+            "SELECT count FROM chat_bargain_counts WHERE chat_id = ?", (chat_id,)
+        )
         row = cur.fetchone()
         return row["count"] if row else 0
 
@@ -95,8 +100,15 @@ class ContextManager:
         cur.execute(
             "INSERT INTO items (item_id, data, price, description) VALUES (?, ?, ?, ?) "
             "ON CONFLICT(item_id) DO UPDATE SET data = ?, price = ?, description = ?, last_updated = CURRENT_TIMESTAMP",
-            (item_id, json.dumps(data, ensure_ascii=False), price, description,
-             json.dumps(data, ensure_ascii=False), price, description),
+            (
+                item_id,
+                json.dumps(data, ensure_ascii=False),
+                price,
+                description,
+                json.dumps(data, ensure_ascii=False),
+                price,
+                description,
+            ),
         )
         self.conn.commit()
 

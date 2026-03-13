@@ -1,5 +1,3 @@
-import os
-import json
 import tempfile
 import pytest
 from auth.cookie_manager import CookieManager

@@ -2,7 +2,6 @@
 
 import asyncio
 import random
-from pathlib import Path
 from playwright.async_api import async_playwright, Browser, Page
 from loguru import logger
 from auth.cookie_manager import CookieManager

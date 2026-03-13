@@ -11,7 +11,9 @@ class PriceAgent(BaseAgent):
     def get_temperature(bargain_count: int) -> float:
         return min(0.3 + bargain_count * 0.15, 0.9)
 
-    async def generate(self, user_msg: str, item_desc: str = "", context: str = "", **kwargs) -> str:
+    async def generate(
+        self, user_msg: str, item_desc: str = "", context: str = "", **kwargs
+    ) -> str:
         bargain_count = kwargs.get("bargain_count", 0)
         self.temperature = self.get_temperature(bargain_count)
         return await super().generate(user_msg, item_desc, context, **kwargs)

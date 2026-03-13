@@ -55,7 +55,6 @@ class WebSocketChannel(MessageChannel):
         logger.debug("Sent registration message")
 
         # Phase 2: Wait for registration response
-        reg_response = None
         for _ in range(10):  # Read up to 10 messages looking for reg response
             try:
                 raw = await asyncio.wait_for(self.ws.recv(), timeout=5)
@@ -69,11 +68,9 @@ class WebSocketChannel(MessageChannel):
 
                 # Look for registration response (code 200 with lwp or reg-related)
                 if data.get("code") == 200 or data.get("lwp") == "/r":
-                    reg_response = data
                     break
                 # Some servers respond with the sync data directly
                 if "body" in data and "syncPushPackage" in str(data.get("body", "")):
-                    reg_response = data
                     break
             except asyncio.TimeoutError:
                 logger.warning("Timeout waiting for registration response")
@@ -87,16 +84,18 @@ class WebSocketChannel(MessageChannel):
         sync_msg = {
             "lwp": "/r/SyncStatus/ackDiff",
             "headers": {"mid": generate_mid()},
-            "body": [{
-                "pipeline": "sync",
-                "tooLong2Tag": "PNM,1",
-                "channel": "sync",
-                "topic": "sync",
-                "highPts": 0,
-                "pts": 0,
-                "seq": 0,
-                "timestamp": now_ms,
-            }],
+            "body": [
+                {
+                    "pipeline": "sync",
+                    "tooLong2Tag": "PNM,1",
+                    "channel": "sync",
+                    "topic": "sync",
+                    "highPts": 0,
+                    "pts": 0,
+                    "seq": 0,
+                    "timestamp": now_ms,
+                }
+            ],
         }
         await self.ws.send(json.dumps(sync_msg))
         logger.debug("Sent sync ack message")
@@ -124,7 +123,9 @@ class WebSocketChannel(MessageChannel):
         return {"lwp": "/!", "headers": {"mid": generate_mid()}}
 
     def _build_send_message(self, chat_id: str, content: str, receiver_id: str) -> dict:
-        encoded = base64.b64encode(json.dumps({"contentType": 1, "text": {"text": content}}).encode()).decode()
+        encoded = base64.b64encode(
+            json.dumps({"contentType": 1, "text": {"text": content}}).encode()
+        ).decode()
         return {
             "lwp": "/r/MessageSend/sendByReceiverScope",
             "headers": {"mid": generate_mid()},
@@ -229,7 +230,9 @@ class WebSocketChannel(MessageChannel):
                 except Exception:
                     break
                 # Check heartbeat timeout
-                if (time.time() - self._last_heartbeat_response) > (self.heartbeat_interval + self.heartbeat_timeout):
+                if (time.time() - self._last_heartbeat_response) > (
+                    self.heartbeat_interval + self.heartbeat_timeout
+                ):
                     logger.warning("Heartbeat timeout, connection may be lost")
                     self._connected = False
                     break
@@ -285,8 +288,13 @@ class WebSocketChannel(MessageChannel):
 
                     # Check message expiry
                     now_ms = int(time.time() * 1000)
-                    if parsed["create_time"] and (now_ms - parsed["create_time"]) > self.message_expire_time:
-                        logger.debug(f"Skipping expired message from {parsed['sender_name']}")
+                    if (
+                        parsed["create_time"]
+                        and (now_ms - parsed["create_time"]) > self.message_expire_time
+                    ):
+                        logger.debug(
+                            f"Skipping expired message from {parsed['sender_name']}"
+                        )
                         continue
 
                     await on_message(parsed)

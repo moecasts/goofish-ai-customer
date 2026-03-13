@@ -58,7 +58,9 @@ class GoofishCustomerService:
         self.manual_timeout = int(os.getenv("MANUAL_MODE_TIMEOUT", "3600"))
 
         # Typing simulation
-        self.simulate_typing = os.getenv("SIMULATE_HUMAN_TYPING", "False").lower() == "true"
+        self.simulate_typing = (
+            os.getenv("SIMULATE_HUMAN_TYPING", "False").lower() == "true"
+        )
 
         # Channel
         self.channel: WebSocketChannel | None = None
@@ -101,7 +103,9 @@ class GoofishCustomerService:
         info = await self.api.get_item_info(item_id)
         if info:
             desc = XianyuApi.build_item_description(info)
-            self.context_manager.save_item(item_id, desc, desc.get("price_range", 0), desc.get("desc", ""))
+            self.context_manager.save_item(
+                item_id, desc, desc.get("price_range", 0), desc.get("desc", "")
+            )
             return desc
         return {}
 
@@ -121,7 +125,9 @@ class GoofishCustomerService:
                 self._toggle_manual_mode(chat_id)
                 return
             # Record seller message as assistant
-            self.context_manager.add_message(chat_id, sender_id, item_id, "assistant", content)
+            self.context_manager.add_message(
+                chat_id, sender_id, item_id, "assistant", content
+            )
             return
 
         # Buyer message
@@ -139,7 +145,9 @@ class GoofishCustomerService:
         item_info = await self._get_item_info(item_id)
         item_desc = str(item_info) if item_info else ""
         context_msgs = self.context_manager.get_context(chat_id)
-        context_str = "\n".join(f"{m['role']}: {m['content']}" for m in context_msgs[-10:])
+        context_str = "\n".join(
+            f"{m['role']}: {m['content']}" for m in context_msgs[-10:]
+        )
 
         bargain_count = self.context_manager.get_bargain_count(chat_id)
 
@@ -168,7 +176,9 @@ class GoofishCustomerService:
 
         # Send reply
         await self.channel.send_message(chat_id, reply, sender_id)
-        self.context_manager.add_message(chat_id, self.my_id, item_id, "assistant", reply)
+        self.context_manager.add_message(
+            chat_id, self.my_id, item_id, "assistant", reply
+        )
         logger.info(f"[Reply] {reply}")
 
     async def _token_refresh_loop(self):
@@ -214,8 +224,8 @@ class GoofishCustomerService:
                 self.connection_restart_flag = False
 
                 # Start background tasks
-                token_task = asyncio.create_task(self._token_refresh_loop())
-                cookie_task = asyncio.create_task(
+                asyncio.create_task(self._token_refresh_loop())
+                asyncio.create_task(
                     self.cookie_refresher.refresh_loop(
                         on_refresh=lambda c: self.token_manager.update_cookies(c)
                     )
@@ -232,7 +242,9 @@ class GoofishCustomerService:
                 if self.channel:
                     await self.channel.disconnect()
                 # Cancel background tasks
-                for task in [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]:
+                for task in [
+                    t for t in asyncio.all_tasks() if t is not asyncio.current_task()
+                ]:
                     task.cancel()
 
             if self.connection_restart_flag:
@@ -242,7 +254,9 @@ class GoofishCustomerService:
                 continue
 
             if retry_count >= max_retries:
-                logger.error(f"Max retries ({max_retries}) exceeded, switching to browser mode...")
+                logger.error(
+                    f"Max retries ({max_retries}) exceeded, switching to browser mode..."
+                )
                 # TODO: Switch to Playwright channel
                 break
 

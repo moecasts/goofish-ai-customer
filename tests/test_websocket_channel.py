@@ -1,5 +1,3 @@
-import json
-import pytest
 from core.websocket_channel import WebSocketChannel
 
 

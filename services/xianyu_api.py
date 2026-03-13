@@ -8,7 +8,9 @@ from services.xianyu_utils import generate_sign
 
 
 class XianyuApi:
-    TOKEN_API = "https://h5api.m.goofish.com/h5/mtop.taobao.idlemessage.pc.login.token/1.0/"
+    TOKEN_API = (
+        "https://h5api.m.goofish.com/h5/mtop.taobao.idlemessage.pc.login.token/1.0/"
+    )
     ITEM_API = "https://h5api.m.goofish.com/h5/mtop.taobao.idle.pc.detail/1.0/"
     LOGIN_CHECK_API = "https://passport.goofish.com/newlogin/hasLogin.do"
 
@@ -50,8 +52,12 @@ class XianyuApi:
         }
 
     async def get_token(self) -> str | None:
-        data_str = json.dumps({"appKey": "444e9908a51d1cb236a27862abc769c9", "deviceId": self.device_id})
-        params = self._build_request_params("mtop.taobao.idlemessage.pc.login.token", data_str)
+        data_str = json.dumps(
+            {"appKey": "444e9908a51d1cb236a27862abc769c9", "deviceId": self.device_id}
+        )
+        params = self._build_request_params(
+            "mtop.taobao.idlemessage.pc.login.token", data_str
+        )
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
@@ -115,7 +121,9 @@ class XianyuApi:
         for sku in item_info.get("skuList", []):
             price = format_price(sku.get("price", 0))
             qty = sku.get("quantity", 0)
-            specs = ", ".join(p.get("valueText", "") for p in sku.get("propertyList", []))
+            specs = ", ".join(
+                p.get("valueText", "") for p in sku.get("propertyList", [])
+            )
             sku_details.append({"spec": specs, "price": price, "stock": qty})
             prices.append(price)
             total_stock += qty

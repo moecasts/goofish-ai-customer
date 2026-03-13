@@ -1,10 +1,6 @@
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from agents.router import IntentRouter
-from agents.classify_agent import ClassifyAgent
 from agents.price_agent import PriceAgent
-from agents.product_agent import ProductAgent
-from agents.default_agent import DefaultAgent
 
 
 class TestIntentRouter:
@@ -34,14 +30,17 @@ class TestIntentRouter:
 class TestSafetyFilter:
     def test_blocks_wechat(self):
         from agents.default_agent import BaseAgent
+
         assert "安全提醒" in BaseAgent.safe_filter("加我微信吧")
 
     def test_blocks_qq(self):
         from agents.default_agent import BaseAgent
+
         assert "安全提醒" in BaseAgent.safe_filter("QQ联系")
 
     def test_passes_normal(self):
         from agents.default_agent import BaseAgent
+
         assert BaseAgent.safe_filter("商品不错") == "商品不错"
 
 

@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from services.xianyu_api import XianyuApi
 
 
@@ -19,7 +18,9 @@ def test_parse_cookies(api):
 
 
 def test_build_sign_params(api):
-    params = api._build_request_params("mtop.taobao.idlemessage.pc.login.token", '{"key":"val"}')
+    params = api._build_request_params(
+        "mtop.taobao.idlemessage.pc.login.token", '{"key":"val"}'
+    )
     assert params["appKey"] == "34839810"
     assert params["api"] == "mtop.taobao.idlemessage.pc.login.token"
     assert "sign" in params
@@ -33,7 +34,11 @@ def test_build_item_description():
         "quantity": 1,
         "soldPrice": 450000,
         "skuList": [
-            {"price": 450000, "quantity": 1, "propertyList": [{"valueText": "128G Black"}]}
+            {
+                "price": 450000,
+                "quantity": 1,
+                "propertyList": [{"valueText": "128G Black"}],
+            }
         ],
     }
     desc = XianyuApi.build_item_description(item_info)
