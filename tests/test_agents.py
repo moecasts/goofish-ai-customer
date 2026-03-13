@@ -1,4 +1,12 @@
+import os
+import time
+
 import pytest
+from dotenv import load_dotenv
+from pprint import pprint
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 @pytest.mark.unit
@@ -69,3 +77,110 @@ class TestPriceAgentTemperature:
     def test_dynamic_temperature(self, price_agent, round, expected_temp):
         """Test temperature calculation for different bargaining rounds."""
         assert price_agent.get_temperature(round) == pytest.approx(expected_temp)
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(not os.getenv("API_KEY"), reason="API_KEY not set in .env")
+class TestRealLLMAPI:
+    """Integration tests for real LLM API calls.
+
+    These tests only run when API_KEY is configured in .env file.
+    They make actual API calls to verify the integration works correctly.
+    """
+
+    @pytest.mark.asyncio
+    async def test_default_agent_real_api(self):
+        """Test DefaultAgent with real LLM API call."""
+        from agents.default_agent import DefaultAgent
+
+        # Create real agent instance (not mocked)
+        agent = DefaultAgent()
+
+        # Verify agent is properly configured
+        assert agent.client is not None, (
+            "Agent client should be configured when API_KEY is set"
+        )
+        assert agent.model is not None, (
+            "Agent model should be configured when API_KEY is set"
+        )
+
+        # Make a real API call
+        user_msg = "你好，请问这个商品还在吗？"
+        item_desc = "测试商品"
+
+        start_time = time.perf_counter()
+        response = await agent.generate(
+            user_msg=user_msg,
+            item_desc=item_desc,
+        )
+        end_time = time.perf_counter()
+        elapsed_time = end_time - start_time
+
+        # Output user message and response for debugging
+        print("\n" + "=" * 60)
+        print("DefaultAgent Test:")
+        print(f"User Message: {user_msg}")
+        print(f"Item Description: {item_desc}")
+        print(f"API Call Time: {elapsed_time:.2f} seconds")
+        print("-" * 60)
+        print("Response:")
+        pprint(response, width=80)
+        print("=" * 60 + "\n")
+
+        # Verify response is valid
+        assert isinstance(response, str), "Response should be a string"
+        assert len(response) > 10, "Response should not be too short"
+        assert len(response) < 1000, "Response should not be too long"
+        assert "错误" not in response, "Response should not contain error messages"
+        assert "失败" not in response, "Response should not contain failure messages"
+        assert "error" not in response.lower(), "Response should not contain 'error'"
+
+    @pytest.mark.asyncio
+    async def test_price_agent_real_api(self):
+        """Test PriceAgent with real LLM API call."""
+        from agents.price_agent import PriceAgent
+
+        # Create real agent instance (not mocked)
+        agent = PriceAgent()
+
+        # Verify agent is properly configured
+        assert agent.client is not None, (
+            "Agent client should be configured when API_KEY is set"
+        )
+        assert agent.model is not None, (
+            "Agent model should be configured when API_KEY is set"
+        )
+
+        # Make a real API call with price-related query
+        user_msg = "能便宜点吗？"
+        item_desc = "二手手机，成色新"
+        bargain_count = 1
+
+        start_time = time.perf_counter()
+        response = await agent.generate(
+            user_msg=user_msg,
+            item_desc=item_desc,
+            bargain_count=bargain_count,
+        )
+        end_time = time.perf_counter()
+        elapsed_time = end_time - start_time
+
+        # Output user message and response for debugging
+        print("\n" + "=" * 60)
+        print("PriceAgent Test:")
+        print(f"User Message: {user_msg}")
+        print(f"Item Description: {item_desc}")
+        print(f"Bargain Count: {bargain_count}")
+        print(f"API Call Time: {elapsed_time:.2f} seconds")
+        print("-" * 60)
+        print("Response:")
+        pprint(response, width=80)
+        print("=" * 60 + "\n")
+
+        # Verify response is valid
+        assert isinstance(response, str), "Response should be a string"
+        assert len(response) > 10, "Response should not be too short"
+        assert len(response) < 1000, "Response should not be too long"
+        assert "错误" not in response, "Response should not contain error messages"
+        assert "失败" not in response, "Response should not contain failure messages"
+        assert "error" not in response.lower(), "Response should not contain 'error'"
