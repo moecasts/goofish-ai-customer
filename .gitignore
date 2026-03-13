@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+data/cookies.json
+data/chat_history.db
+data/logs/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/

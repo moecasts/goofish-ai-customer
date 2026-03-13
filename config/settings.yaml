@@ -1,0 +1,13 @@
+llm:
+  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  model: "qwen-max"
+
+reply:
+  max_length: 100
+  simulate_typing: true
+  typing_speed: 5
+
+logging:
+  level: "DEBUG"
+  rotation: "1 day"
+  retention: "30 days"
