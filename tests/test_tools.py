@@ -40,6 +40,16 @@ class TestSafetyCheck:
         assert result == "这个商品不错"
         assert "安全提醒" not in result
 
+    def test_blocks_case_insensitive(self):
+        """测试大小写不敏感拦截。"""
+        # 测试大写
+        result = check_safety("加我QQ吧")
+        assert "安全提醒" in result
+
+        # 测试混合大小写
+        result = check_safety("用qq联系")
+        assert "安全提醒" in result
+
 
 @pytest.mark.unit
 class TestGetItemInfo:
@@ -50,8 +60,9 @@ class TestGetItemInfo:
         """测试查询存在的商品。"""
         # 假设 config/products.yaml 中有该商品
         info = await get_item_info("123456789")
-        # 根据实际配置验证
+        # 根据实际配置验证 - 要么包含预期字段，要么为空（如果配置不存在）
         assert isinstance(info, dict)
+        assert "min_price" in info or len(info) == 0
 
     @pytest.mark.asyncio
     async def test_get_non_existing_item(self):
