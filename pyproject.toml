@@ -13,6 +13,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "ruff>=0.8.0",
     "lefthook>=0.8.0",
+    "langgraph>=1.1.2",
+    "langchain-openai>=1.1.11",
+    "langchain-core>=1.2.19",
+    "tenacity>=9.1.4",
 ]
 
 [build-system]
