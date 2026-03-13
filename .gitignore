@@ -16,3 +16,6 @@ htmlcov/
 *.cover
 .hypothesis/
 .pytest_cache/
+
+# Git worktrees
+.worktrees/
