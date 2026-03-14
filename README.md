@@ -141,19 +141,34 @@ python main.py
 
 ### 环境变量 (.env)
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `API_KEY` | - | LLM API Key |
-| `COOKIES_STR` | - | 闲鱼 Cookie |
-| `MODEL_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | LLM API 地址 |
-| `MODEL_NAME` | `qwen-max` | LLM 模型名称 |
-| `TOGGLE_KEYWORDS` | `#manual` | 人工接管触发词 |
-| `SIMULATE_HUMAN_TYPING` | `False` | 是否模拟打字延迟 |
-| `LOG_LEVEL` | `DEBUG` | 日志级别 |
-| `HEARTBEAT_INTERVAL` | `15` | WebSocket 心跳间隔（秒） |
-| `TOKEN_REFRESH_INTERVAL` | `3600` | Token 刷新间隔（秒） |
-| `MANUAL_MODE_TIMEOUT` | `3600` | 人工接管超时（秒） |
-| `MESSAGE_EXPIRE_TIME` | `300000` | 消息过期时间（毫秒） |
+| 变量 | 必需 | 默认值 | 说明 |
+|------|------|--------|------|
+| `PRIMARY_MODEL` | 否 | `qwen-max` | 主模型名称 |
+| `API_KEY` | 是 | - | LLM API Key |
+| `MODEL_BASE_URL` | 否 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | LLM API 地址 |
+| `FALLBACK_MODEL` | 否 | - | 备用模型名称 |
+| `FALLBACK_API_KEY` | 否 | - | 备用模型 API Key |
+| `FALLBACK_BASE_URL` | 否 | - | 备用模型 API 地址 |
+| `FALLBACK_REPLY` | 否 | `卖家暂时离开了，回来马上回复！` | 兜底回复内容 |
+| `COOKIES_STR` | 是 | - | 闲鱼 Cookie |
+| `LANGSMITH_API_KEY` | 否 | - | LangSmith API Key（可选监控） |
+| `LANGSMITH_PROJECT` | 否 | `goofish-customer` | LangSmith 项目名称 |
+| `USE_LANGGRAPH` | 否 | `false` | 是否启用 LangGraph 新架构 |
+| `TOGGLE_KEYWORDS` | 否 | `#manual` | 人工接管触发词 |
+| `SIMULATE_HUMAN_TYPING` | 否 | `False` | 是否模拟打字延迟 |
+| `LOG_LEVEL` | 否 | `DEBUG` | 日志级别 |
+| `HEARTBEAT_INTERVAL` | 否 | `15` | WebSocket 心跳间隔（秒） |
+| `TOKEN_REFRESH_INTERVAL` | 否 | `3600` | Token 刷新间隔（秒） |
+| `MANUAL_MODE_TIMEOUT` | 否 | `3600` | 人工接管超时（秒） |
+| `MESSAGE_EXPIRE_TIME` | 否 | `300000` | 消息过期时间（毫秒） |
+
+#### LangGraph 架构支持
+
+当 `USE_LANGGRAPH=true` 时，系统使用基于 LangGraph 的新架构：
+- 使用 LangGraph 状态机进行意图路由
+- 支持更复杂的对话状态管理
+- 提供可视化调试和监控
+- 保持与现有接口兼容，可通过环境变量切换 |
 
 ### 商品信息 (config/products.yaml)
 
