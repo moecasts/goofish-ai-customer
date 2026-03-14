@@ -152,7 +152,7 @@ class GoofishCustomerService:
         bargain_count = self.context_manager.get_bargain_count(chat_id)
 
         # Route and generate reply
-        reply = await self.router.route(
+        reply, updated_bargain_count = await self.router.route(
             content,
             item_desc=item_desc,
             context=context_str,
@@ -166,8 +166,10 @@ class GoofishCustomerService:
         if not reply:
             return
 
-        # Bargain count is now managed by LangGraph state graph
-        # No need to manually increment here
+        # Sync updated bargain_count back to context_manager for external tracking
+        if updated_bargain_count != bargain_count:
+            self.context_manager.set_bargain_count(chat_id, updated_bargain_count)
+            logger.debug(f"Updated bargain_count for {chat_id}: {bargain_count} -> {updated_bargain_count}")
 
         # Simulate typing
         await self._simulate_typing_delay(reply)

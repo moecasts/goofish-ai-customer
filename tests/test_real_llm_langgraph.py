@@ -57,7 +57,7 @@ class TestRealLLMAPILangGraph:
         print("-" * 60)
 
         start_time = time.perf_counter()
-        reply = await router.route(
+        reply, updated_bargain_count = await router.route(
             user_msg="3000能卖吗？",
             item_desc="iPhone 15 Pro Max 256GB，成色95新，无磕碰",
             user_id="test_price_user",
@@ -69,6 +69,7 @@ class TestRealLLMAPILangGraph:
 
         print("用户: 3000能卖吗？")
         print(f"回复: {reply}")
+        print(f"更新后的 bargain_count: {updated_bargain_count}")
         print(f"耗时: {elapsed:.2f}秒")
         print("=" * 60 + "\n")
 
@@ -90,7 +91,7 @@ class TestRealLLMAPILangGraph:
         print("-" * 60)
 
         start_time = time.perf_counter()
-        reply = await router.route(
+        reply, updated_bargain_count = await router.route(
             user_msg="这个手机是什么颜色的？有原装充电器吗？",
             item_desc="iPhone 15 Pro Max 256GB，原色钛金属，无磕碰，含原装充电器和数据线",
             product_name="iPhone 15 Pro Max",
@@ -121,7 +122,7 @@ class TestRealLLMAPILangGraph:
         print("-" * 60)
 
         start_time = time.perf_counter()
-        reply = await router.route(
+        reply, updated_bargain_count = await router.route(
             user_msg="你好，在吗？",
             item_desc="iPhone 15 Pro Max",
             user_id="test_default_user",
@@ -160,7 +161,7 @@ class TestRealLLMAPILangGraph:
 
         for user_msg in test_cases:
             start_time = time.perf_counter()
-            reply = await router.route(
+            reply, updated_bargain_count = await router.route(
                 user_msg=user_msg,
                 item_desc="iPhone 15 Pro Max",
                 user_id="test_safety_user",
@@ -191,40 +192,40 @@ class TestRealLLMAPILangGraph:
         print("-" * 60)
 
         # 用户 A 的第 1 轮议价
-        reply_a1 = await router.route(
+        reply_a1, count_a1 = await router.route(
             user_msg="3000能卖吗？",
             user_id="user_a",
             bargain_count=0,
             min_price=4000,
         )
-        print(f"用户A (第1轮): {reply_a1}")
+        print(f"用户A (第1轮): {reply_a1}, bargain_count={count_a1}")
 
         # 用户 B 的第 1 轮议价（应该独立计数）
-        reply_b1 = await router.route(
+        reply_b1, count_b1 = await router.route(
             user_msg="3000能卖吗？",
             user_id="user_b",
             bargain_count=0,
             min_price=4000,
         )
-        print(f"用户B (第1轮): {reply_b1}")
+        print(f"用户B (第1轮): {reply_b1}, bargain_count={count_b1}")
 
         # 用户 A 的第 2 轮议价（应该使用 bargain_count=1）
-        reply_a2 = await router.route(
+        reply_a2, count_a2 = await router.route(
             user_msg="3500呢？",
             user_id="user_a",
             bargain_count=1,
             min_price=4000,
         )
-        print(f"用户A (第2轮): {reply_a2}")
+        print(f"用户A (第2轮): {reply_a2}, bargain_count={count_a2}")
 
         # 用户 B 的第 2 轮议价（应该独立计数，也是 bargain_count=1）
-        reply_b2 = await router.route(
+        reply_b2, count_b2 = await router.route(
             user_msg="3500呢？",
             user_id="user_b",
             bargain_count=1,
             min_price=4000,
         )
-        print(f"用户B (第2轮): {reply_b2}")
+        print(f"用户B (第2轮): {reply_b2}, bargain_count={count_b2}")
 
         print("=" * 60 + "\n")
 
@@ -235,6 +236,130 @@ class TestRealLLMAPILangGraph:
         assert isinstance(reply_b2, str)
         # 两个用户的第1轮应该类似（都坚持原价）
         # 两个用户的第2轮应该类似（都小幅让步）
+
+    @pytest.mark.asyncio
+    async def test_langgraph_multi_round_bargaining(self):
+        """测试 LangGraph 多轮议价场景（验证 bargain_count 持久化）。
+
+        这个测试验证 bargain_count 在多轮对话中正确递增：
+        - 第1轮：bargain_count=0, temp=0.3 (坚持原价)
+        - 第2轮：bargain_count=1, temp=0.45 (小幅让步)
+        - 第3轮：bargain_count=2, temp=0.6 (较大让步)
+        - 第4轮：bargain_count=3, temp=0.75 (接近底价)
+        - 第5轮：bargain_count=4, temp=0.9 (可以接受最低价)
+        """
+        from agents.graph import LangGraphRouter
+
+        router = LangGraphRouter()
+
+        print("\n" + "=" * 60)
+        print("LangGraph 多轮议价测试")
+        print("-" * 60)
+
+        user_id = "test_multi_round_user"
+        min_price = 4000
+        original_price = 5000
+
+        # 多轮议价对话
+        bargaining_messages = [
+            ("3000能卖吗？", 0),
+            ("3500呢？", 1),
+            ("3800行不行？", 2),
+            ("4000怎么样？", 3),
+            ("4200可以吗？", 4),
+        ]
+
+        replies = []
+        counts = []
+
+        for i, (msg, expected_count) in enumerate(bargaining_messages, 1):
+            start_time = time.perf_counter()
+            reply, updated_count = await router.route(
+                user_msg=msg,
+                user_id=user_id,
+                bargain_count=expected_count,
+                min_price=min_price,
+                price=f"{min_price}-{original_price}",
+                product_name="iPhone 15 Pro Max",
+                description="iPhone 15 Pro Max 256GB，成色95新，无磕碰",
+            )
+            elapsed = time.perf_counter() - start_time
+
+            replies.append(reply)
+            counts.append(updated_count)
+
+            print(f"第{i}轮")
+            print(f"  提问： {msg}")
+            print(f"  回复: {reply}")
+            print(f"  bargain_count: {expected_count} → {updated_count} (递增+1)")
+            print(f"  耗时: {elapsed:.2f}秒")
+            print("-" * 60)
+
+            # 验证 bargain_count 正确递增
+            assert updated_count == expected_count + 1, (
+                f"第{i}轮: bargain_count 应该是 {expected_count + 1}, 实际是 {updated_count}"
+            )
+
+        print("=" * 60 + "\n")
+
+        # 验证所有回复都有效
+        for i, reply in enumerate(replies, 1):
+            assert isinstance(reply, str), f"第{i}轮回复应该是字符串"
+            assert len(reply) > 5, f"第{i}轮回复长度应该大于5个字符"
+            assert "错误" not in reply, f"第{i}轮回复不应包含错误信息"
+
+        # 验证 bargain_count 递增序列
+        assert counts == [1, 2, 3, 4, 5], (
+            f"bargain_count 应该递增为 [1,2,3,4,5], 实际是 {counts}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_langgraph_bargaining_temperature_progression(self):
+        """测试议价时温度递增对回复的影响。
+
+        验证随着 bargain_count 增加，温度正确递增：
+        - count=0: temp=0.3 (回复较保守)
+        - count=1: temp=0.45 (稍灵活)
+        - count=2: temp=0.6 (更灵活)
+        """
+        from agents.graph import LangGraphRouter
+
+        router = LangGraphRouter()
+
+        print("\n" + "=" * 60)
+        print("LangGraph 议价温度递增测试")
+        print("-" * 60)
+
+        user_id = "test_temp_user"
+        min_price = 4000
+
+        # 连续发送相同的议价请求，观察温度变化
+        rounds = 3
+        replies = []
+
+        for i in range(rounds):
+            reply, updated_count = await router.route(
+                user_msg="3000能卖吗？",
+                user_id=user_id,
+                bargain_count=i,
+                min_price=min_price,
+                price="4000-5000",
+            )
+            replies.append((i, updated_count, reply))
+            print(f"第{i + 1}轮: bargain_count={i} → {updated_count}")
+            print(f"  回复: {reply[:50]}...")
+            print("-" * 60)
+
+        print("=" * 60 + "\n")
+
+        # 验证 bargain_count 递增
+        for i, count, _ in replies:
+            assert count == i + 1, f"bargain_count 应该递增: {i} → {i + 1}"
+
+        # 验证所有回复都有效
+        for i, count, reply in replies:
+            assert isinstance(reply, str)
+            assert len(reply) > 5
 
     @pytest.mark.asyncio
     async def test_langgraph_performance(self):
@@ -251,7 +376,7 @@ class TestRealLLMAPILangGraph:
         elapsed_times = []
         for i in range(5):
             start_time = time.perf_counter()
-            reply = await router.route(
+            reply, updated_bargain_count = await router.route(
                 user_msg=f"你好，这是第{i + 1}次测试",
                 item_desc="测试商品",
                 user_id=f"perf_test_user_{i}",

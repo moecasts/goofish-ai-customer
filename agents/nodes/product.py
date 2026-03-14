@@ -24,7 +24,7 @@ async def product_node(state: AgentState) -> AgentState:
     ]
 
     try:
-        response = await llm_client.invoke(messages, temperature=0.4, allow_empty=False)
+        response = await llm_client.invoke(messages, allow_empty=False)
         logger.debug(f"LLM 原始回复: {response.content}")
         safe_content = check_safety(response.content)
         logger.debug(f"安全过滤后: {safe_content}")

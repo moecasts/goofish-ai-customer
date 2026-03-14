@@ -86,6 +86,16 @@ class ContextManager:
         row = cur.fetchone()
         return row["count"] if row else 0
 
+    def set_bargain_count(self, chat_id: str, count: int):
+        """直接设置议价次数（用于从 LangGraph 同步状态）。"""
+        cur = self.conn.cursor()
+        cur.execute(
+            "INSERT INTO chat_bargain_counts (chat_id, count, last_updated) VALUES (?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(chat_id) DO UPDATE SET count = ?, last_updated = CURRENT_TIMESTAMP",
+            (chat_id, count, count),
+        )
+        self.conn.commit()
+
     def increment_bargain_count(self, chat_id: str):
         cur = self.conn.cursor()
         cur.execute(

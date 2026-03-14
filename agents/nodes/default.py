@@ -24,7 +24,7 @@ async def default_node(state: AgentState) -> AgentState:
     ]
 
     try:
-        response = await llm_client.invoke(messages, temperature=0.7, allow_empty=False)
+        response = await llm_client.invoke(messages, allow_empty=False)
         safe_content = check_safety(response.content)
         logger.info("默认节点执行成功")
         return {"messages": [AIMessage(content=safe_content)]}

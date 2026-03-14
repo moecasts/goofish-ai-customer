@@ -105,14 +105,14 @@ class LangGraphRouter:
         description: str = "",
         user_id: str = "default_user",
         **kwargs: Any,
-    ) -> str:
+    ) -> tuple[str, int]:
         """路由到合适的 Agent 生成回复。
 
         Args:
             user_msg: 用户消息
             item_desc: 商品描述
             context: 对话上下文
-            bargain_count: 议价次数
+            bargain_count: 议价次数（仅用于新会话的初始值）
             min_price: 最低价格
             product_name: 商品名称
             price: 价格范围
@@ -121,18 +121,24 @@ class LangGraphRouter:
             **kwargs: 其他参数
 
         Returns:
-            Agent 生成的回复
+            (Agent 生成的回复, 更新后的 bargain_count)
         """
         try:
-            # 构建输入消息
-            messages = [HumanMessage(content=user_msg)]
+            # 配置会话隔离
+            config = {"configurable": {"thread_id": f"user_{user_id}"}}
 
-            # 构建初始状态
-            initial_state: AgentState = {
-                "messages": messages,
+            # 获取当前 checkpointed state（新会话时为空）
+            current_state = self.graph.get_state(config)
+            existing_state = current_state.values if current_state else {}
+
+            # 构建更新状态，保留 checkpointed 值
+            # 设计决策：只使用当前消息（price_prompt 要求"只回复用户最后一条消息，忽略之前的对话历史"）
+            update_state: AgentState = {
+                "messages": [HumanMessage(content=user_msg)],  # 当前消息
                 "user_id": user_id,
-                "intent": "",
-                "bargain_count": bargain_count,
+                "bargain_count": existing_state.get(
+                    "bargain_count", bargain_count
+                ),  # 优先使用 checkpointed 值
                 "item_info": {
                     "min_price": min_price,
                     "product_name": product_name,
@@ -141,24 +147,31 @@ class LangGraphRouter:
                     "item_desc": item_desc,
                     "context": context,
                 },
+                "intent": "",  # 重置以重新分类意图
+                "manual_mode": existing_state.get(
+                    "manual_mode", False
+                ),  # 保留 manual_mode 状态
             }
 
-            # 配置会话隔离
-            config = {"configurable": {"thread_id": f"user_{user_id}"}}
+            # 执行状态图（使用 checkpointed state 作为基础）
+            result = await self.graph.ainvoke(update_state, config)
 
-            # 执行状态图
-            result = await self.graph.ainvoke(initial_state, config)
+            # 提取 AI 回复和更新的 bargain_count
+            updated_bargain_count = result.get(
+                "bargain_count", existing_state.get("bargain_count", bargain_count)
+            )
 
-            # 提取 AI 回复
             if result.get("messages"):
                 last_message = result["messages"][-1]
                 if isinstance(last_message, AIMessage):
-                    return last_message.content
+                    return last_message.content, updated_bargain_count
                 elif isinstance(last_message, dict) and "content" in last_message:
-                    return last_message["content"]
+                    return last_message["content"], updated_bargain_count
 
-            return ""
+            return "", updated_bargain_count
 
         except Exception as e:
             logger.error(f"LangGraph 执行失败: {e}")
-            return os.getenv("FALLBACK_REPLY", "卖家暂时离开了，回来马上回复！")
+            return os.getenv(
+                "FALLBACK_REPLY", "卖家暂时离开了，回来马上回复！"
+            ), bargain_count

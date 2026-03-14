@@ -28,15 +28,12 @@ async def price_node(state: AgentState) -> AgentState:
     ]
 
     try:
-        temperature = min(0.3 + state["bargain_count"] * 0.15, 0.9)
-        response = await llm_client.invoke(
-            messages, temperature=temperature, allow_empty=False
-        )
+        response = await llm_client.invoke(messages, allow_empty=False)
         logger.debug(f"LLM 原始回复: {response.content}")
         safe_content = check_safety(response.content)
         logger.debug(f"安全过滤后: {safe_content}")
         logger.info(
-            f"议价节点: count={state['bargain_count']}, temp={temperature}, reply_length={len(safe_content)}"
+            f"议价节点: count={state['bargain_count']}, reply_length={len(safe_content)}"
         )
         return {
             "messages": [AIMessage(content=safe_content)],
@@ -48,8 +45,3 @@ async def price_node(state: AgentState) -> AgentState:
             "messages": [AIMessage(content="抱歉，处理议价请求时出错了")],
             "bargain_count": state["bargain_count"],
         }
-
-
-def calculate_price_temperature(bargain_count: int) -> float:
-    """计算议价温度。"""
-    return min(0.3 + bargain_count * 0.15, 0.9)

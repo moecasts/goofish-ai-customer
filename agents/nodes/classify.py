@@ -23,7 +23,7 @@ async def classify_node(state: AgentState) -> AgentState:
     ]
 
     try:
-        response = await llm_client.invoke(messages, temperature=0.3)
+        response = await llm_client.invoke(messages)
         intent = response.content.strip().lower()
         valid_intents = {"price", "product", "default", "no_reply"}
         intent = intent if intent in valid_intents else "default"
