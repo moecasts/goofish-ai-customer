@@ -9,6 +9,7 @@ import os
 
 class LLMError(Exception):
     """LLM 调用失败。"""
+
     pass
 
 
@@ -48,11 +49,21 @@ class LLMClient:
         messages: list[BaseMessage],
         temperature: float = 0.7,
         max_tokens: int = 500,
+        allow_empty: bool = False,
     ) -> BaseMessage:
         """
         调用 LLM，支持自动重试和降级。
 
-        按优先级依次尝试 LLM，返回第一个成功的响应。
+        Args:
+            messages: 消息列表
+            temperature: 温度参数
+            max_tokens: 最大 token 数
+            allow_empty: 是否允许空回复
+                - False (默认): 空回复视为失败，使用兜底或重试
+                - True: 允许空回复（用于状态查询等特殊场景）
+
+        Returns:
+            LLM 响应消息
         """
         # 遍历 LLM 链，返回第一个成功的
         for idx, llm in enumerate(self.llm_chain):
@@ -63,6 +74,18 @@ class LLMClient:
                     max_tokens=max_tokens,
                     timeout=30,
                 )
+
+                # 检查空响应
+                if not response.content or len(response.content.strip()) == 0:
+                    if allow_empty:
+                        # 调用方明确允许空回复
+                        logger.debug(f"LLM[{idx}] 返回空响应（允许）")
+                        return response
+                    else:
+                        # 不允许空回复，视为失败
+                        logger.warning(f"LLM[{idx}] 返回空响应，视为失败")
+                        continue
+
                 logger.debug(f"LLM[{idx}] 调用成功")
                 return response
 
@@ -72,8 +95,13 @@ class LLMClient:
                 continue
 
         # 所有 LLM 都失败，返回兜底回复
-        logger.error("所有 LLM 都失败，使用兜底回复")
-        return self._get_fallback_response()
+        if not allow_empty:
+            logger.error("所有 LLM 都失败，使用兜底回复")
+            return self._get_fallback_response()
+        else:
+            # 即使允许空，所有 LLM 都失败也应该记录
+            logger.error("所有 LLM 都失败（允许空模式）")
+            return AIMessage(content="")
 
     def _create_llm(
         self,
@@ -95,7 +123,5 @@ class LLMClient:
 
     def _get_fallback_response(self) -> BaseMessage:
         """获取兜底回复。"""
-        fallback_msg = os.getenv(
-            "FALLBACK_REPLY", "卖家暂时离开了，回来马上回复！"
-        )
+        fallback_msg = os.getenv("FALLBACK_REPLY", "卖家暂时离开了，回来马上回复！")
         return AIMessage(content=fallback_msg)
