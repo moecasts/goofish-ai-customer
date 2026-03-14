@@ -14,7 +14,7 @@ from auth.cookie_manager import CookieManager
 from auth.cookie_refresher import CookieRefresher
 from auth.token_manager import TokenManager
 from core.websocket_channel import WebSocketChannel
-from agents.router import IntentRouter
+from agents.graph import LangGraphRouter
 from services.xianyu_api import XianyuApi
 from services.xianyu_utils import generate_device_id
 from storage.context_manager import ContextManager
@@ -36,7 +36,7 @@ class GoofishCustomerService:
     def __init__(self):
         self.cookie_manager = CookieManager()
         self.context_manager = ContextManager()
-        self.router = IntentRouter()
+        self.router = LangGraphRouter()
 
         cookies_str = self.cookie_manager.get_cookies_str()
         if not cookies_str:
@@ -166,10 +166,8 @@ class GoofishCustomerService:
         if not reply:
             return
 
-        # Check if price intent -> increment bargain count
-        intent = self.router.keyword_match(content)
-        if intent == "price":
-            self.context_manager.increment_bargain_count(chat_id)
+        # Bargain count is now managed by LangGraph state graph
+        # No need to manually increment here
 
         # Simulate typing
         await self._simulate_typing_delay(reply)
