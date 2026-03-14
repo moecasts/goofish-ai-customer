@@ -3,7 +3,7 @@
 import os
 import pytest
 from dotenv import load_dotenv
-from services.llm_client import LLMClient, LLMError
+from services.llm_client import LLMClient
 from langchain_core.messages import HumanMessage
 
 load_dotenv()
