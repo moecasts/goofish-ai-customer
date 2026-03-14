@@ -200,17 +200,33 @@ def context_manager(test_data_dir):
     cm.close()
 
 
-@pytest.fixture
-def intent_router():
-    """Create IntentRouter instance for testing."""
-    from agents.router import IntentRouter
-
-    return IntentRouter()
-
+# LangGraph 相关 fixtures
 
 @pytest.fixture
-def price_agent():
-    """Create PriceAgent instance for testing."""
-    from agents.price_agent import PriceAgent
+def langgraph_router():
+    """创建 LangGraph 路由器实例用于测试。"""
+    from agents.graph import LangGraphRouter
+    return LangGraphRouter()
 
-    return PriceAgent()
+
+@pytest.fixture
+def agent_graph():
+    """创建 Agent 状态图用于测试。"""
+    from agents.graph import create_agent_graph
+    return create_agent_graph()
+
+
+@pytest.fixture
+def sample_agent_state():
+    """创建示例 AgentState 用于测试。"""
+    from agents.state import AgentState
+    from langchain_core.messages import HumanMessage
+
+    return AgentState(
+        messages=[HumanMessage(content="测试消息")],
+        user_id="test_user",
+        intent="",
+        bargain_count=0,
+        item_info=None,
+        manual_mode=False,
+    )
