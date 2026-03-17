@@ -1,21 +1,24 @@
 """意图识别节点。"""
 
+from pathlib import Path
 from langchain_core.messages import SystemMessage
 from agents.state import AgentState
 from agents.skill_registry import SkillRegistry
 from services.llm_client import LLMClient
 from loguru import logger
 
+_CLASSIFY_PROMPT_PATH = Path(__file__).parent.parent.parent / "config" / "prompts" / "classify_prompt.md"
+
 
 def make_classify_node(registry: SkillRegistry):
     """工厂函数：创建绑定了 registry 的 classify 节点函数。"""
+    llm_client = LLMClient()
 
     async def classify_node(state: AgentState) -> AgentState:
         """意图识别节点：动态注入 skill 列表，LLM 返回 skill name。"""
-        llm_client = LLMClient()
 
         try:
-            with open("config/prompts/classify_prompt.md", "r", encoding="utf-8") as f:
+            with open(_CLASSIFY_PROMPT_PATH, "r", encoding="utf-8") as f:
                 prompt_template = f.read()
         except FileNotFoundError:
             logger.error("classify_prompt.md 文件未找到")

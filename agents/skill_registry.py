@@ -15,7 +15,8 @@ class Skill:
     description: str
     prompt: str
     state_hooks: list[str] = field(default_factory=list)
-    skill_dir: Path = field(default_factory=Path)
+    write_hooks: list[str] = field(default_factory=list)
+    skill_dir: Optional[Path] = None
 
 
 class SkillRegistry:
@@ -54,6 +55,7 @@ class SkillRegistry:
                 description=meta["description"],
                 prompt=prompt.strip(),
                 state_hooks=meta.get("state_hooks") or [],
+                write_hooks=meta.get("write_hooks") or [],
                 skill_dir=skill_md.parent,
             )
         except Exception as e:
@@ -78,6 +80,9 @@ class SkillRegistry:
         return list(self._skills.values())
 
     def build_classify_context(self) -> str:
-        """生成注入 classify prompt 的 skill 列表描述。"""
+        """生成注入 classify prompt 的 skill 列表描述。
+
+        技能按目录名称字母顺序排列（由 _load_skills 中的 sorted() 保证）。
+        """
         lines = [f"- {s.name}: {s.description}" for s in self._skills.values()]
         return "\n".join(lines)

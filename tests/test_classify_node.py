@@ -31,8 +31,8 @@ async def test_classify_node_valid_intent():
     with patch("agents.nodes.classify.LLMClient", return_value=mock_llm), \
          patch("builtins.open", mock_open(read_data="分类 prompt\n{skills}")):
         node = make_classify_node(registry)
-        state = AgentState(messages=[HumanMessage(content="能便宜点吗")])
-        result = await node(state)
+    state = AgentState(messages=[HumanMessage(content="能便宜点吗")])
+    result = await node(state)
 
     assert result["intent"] == "price"
 
@@ -49,8 +49,8 @@ async def test_classify_node_invalid_intent_falls_back_to_default():
     with patch("agents.nodes.classify.LLMClient", return_value=mock_llm), \
          patch("builtins.open", mock_open(read_data="分类 prompt\n{skills}")):
         node = make_classify_node(registry)
-        state = AgentState(messages=[HumanMessage(content="随便")])
-        result = await node(state)
+    state = AgentState(messages=[HumanMessage(content="随便")])
+    result = await node(state)
 
     assert result["intent"] == "default"
 
@@ -67,8 +67,8 @@ async def test_classify_node_no_reply_is_valid():
     with patch("agents.nodes.classify.LLMClient", return_value=mock_llm), \
          patch("builtins.open", mock_open(read_data="分类 prompt\n{skills}")):
         node = make_classify_node(registry)
-        state = AgentState(messages=[HumanMessage(content="😊")])
-        result = await node(state)
+    state = AgentState(messages=[HumanMessage(content="😊")])
+    result = await node(state)
 
     assert result["intent"] == "no_reply"
 
@@ -77,8 +77,10 @@ async def test_classify_node_no_reply_is_valid():
 async def test_classify_node_file_not_found():
     """测试 prompt 文件不存在时降级为 default。"""
     registry = make_registry_with_skills("price", "product", "default")
-    with patch("builtins.open", side_effect=FileNotFoundError):
+    mock_llm = AsyncMock()
+    with patch("agents.nodes.classify.LLMClient", return_value=mock_llm):
         node = make_classify_node(registry)
+    with patch("builtins.open", side_effect=FileNotFoundError):
         state = AgentState(messages=[HumanMessage(content="你好")])
         result = await node(state)
 
@@ -95,7 +97,7 @@ async def test_classify_node_llm_error():
     with patch("agents.nodes.classify.LLMClient", return_value=mock_llm), \
          patch("builtins.open", mock_open(read_data="分类 prompt\n{skills}")):
         node = make_classify_node(registry)
-        state = AgentState(messages=[HumanMessage(content="你好")])
-        result = await node(state)
+    state = AgentState(messages=[HumanMessage(content="你好")])
+    result = await node(state)
 
     assert result["intent"] == "default"

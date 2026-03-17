@@ -1,6 +1,6 @@
 """Agent 状态定义。"""
 
-from typing import Annotated, Sequence, Optional
+from typing import Annotated, Any, Sequence, Optional
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
@@ -24,7 +24,7 @@ class AgentState(TypedDict):
     user_id: str
     intent: str
     bargain_count: int
-    item_info: Optional[ItemInfo]
+    item_info: Optional[dict[str, Any]]
     manual_mode: bool
 
 

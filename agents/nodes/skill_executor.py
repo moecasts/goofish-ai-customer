@@ -12,6 +12,7 @@ from loguru import logger
 
 def make_skill_executor(registry: SkillRegistry) -> Callable:
     """工厂函数：创建绑定了 registry 的 skill_executor 节点函数。"""
+    llm_client = LLMClient()
 
     async def skill_executor_node(state: AgentState) -> AgentState:
         """通用 skill 执行节点：查找 skill → 注入变量 → 调用 LLM → 安全过滤 → 返回。"""
@@ -48,7 +49,6 @@ def make_skill_executor(registry: SkillRegistry) -> Callable:
             logger.warning(f"skill '{intent}' prompt 中有未替换的变量: {remaining}")
 
         # 3. 调用 LLM
-        llm_client = LLMClient()
         messages = [SystemMessage(content=prompt), *state["messages"]]
 
         try:
@@ -59,8 +59,8 @@ def make_skill_executor(registry: SkillRegistry) -> Callable:
             # 4. 构建返回 state
             updates: dict = {"messages": [AIMessage(content=safe_content)]}
 
-            # 5. state_hooks 写回：bargain_count +1
-            if "bargain_count" in skill.state_hooks:
+            # 5. write_hooks 写回：bargain_count +1
+            if "bargain_count" in skill.write_hooks:
                 try:
                     updates["bargain_count"] = int(state.get("bargain_count", 0)) + 1
                 except (TypeError, ValueError) as e:

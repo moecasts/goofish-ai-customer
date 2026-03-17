@@ -12,7 +12,6 @@ from loguru import logger
 from agents.state import AgentState
 from agents.nodes import make_classify_node, make_skill_executor
 from agents.skill_registry import SkillRegistry
-from services.llm_client import LLMClient
 
 _SKILLS_DIR_DEFAULT = "config/skills"
 
@@ -60,7 +59,6 @@ class LangGraphRouter:
     def __init__(self, skills_dir: str = _SKILLS_DIR_DEFAULT):
         """初始化路由器。"""
         self.graph = create_agent_graph(skills_dir)
-        self.llm_client = LLMClient()
         logger.info("LangGraphRouter 初始化完成")
 
     async def route(

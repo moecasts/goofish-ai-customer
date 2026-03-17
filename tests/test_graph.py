@@ -31,7 +31,9 @@ def test_create_agent_graph(skills_dir):
 def test_graph_structure(skills_dir):
     """测试状态图包含必要节点。"""
     graph = create_agent_graph(str(skills_dir))
-    assert graph is not None
+    graph_nodes = set(graph.get_graph().nodes.keys())
+    assert "classify" in graph_nodes
+    assert "skill_executor" in graph_nodes
 
 
 def test_route_intent_no_reply():
@@ -60,3 +62,32 @@ def test_route_intent_missing():
     state = AgentState(messages=[], user_id="u", intent="",
                        bargain_count=0, item_info=None, manual_mode=False)
     assert route_intent(state) == "skill"
+
+
+@pytest.mark.asyncio
+async def test_graph_executes_end_to_end(skills_dir):
+    """测试完整图执行流程：classify → skill_executor → AIMessage 结果。"""
+    mock_llm = AsyncMock()
+
+    with patch("agents.nodes.classify.LLMClient", return_value=mock_llm), \
+         patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
+         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x):
+        graph = create_agent_graph(str(skills_dir))
+        state = {
+            "messages": [HumanMessage(content="能便宜一点吗")],
+            "user_id": "test_user",
+            "bargain_count": 0,
+            "item_info": {"min_price": "100"},
+            "intent": "",
+            "manual_mode": False,
+        }
+        # Mock classify to return "default" so we don't depend on LLM returning a valid skill name
+        mock_llm.invoke.side_effect = [
+            MagicMock(content="default"),   # classify call → returns "default"
+            MagicMock(content="测试回复"),  # skill_executor call → returns response
+        ]
+        result = await graph.ainvoke(state, {"configurable": {"thread_id": "test_e2e"}})
+
+    assert result.get("messages")
+    last_msg = result["messages"][-1]
+    assert isinstance(last_msg, AIMessage)

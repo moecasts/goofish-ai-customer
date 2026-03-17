@@ -24,6 +24,7 @@ def price_skill() -> Skill:
         description="处理议价",
         prompt="议价 prompt，底价 {min_price}，次数 {bargain_count}",
         state_hooks=["bargain_count", "min_price"],
+        write_hooks=["bargain_count"],
         skill_dir=Path("/tmp/price"),
     )
 
@@ -35,6 +36,7 @@ def product_skill() -> Skill:
         description="处理商品咨询",
         prompt="商品咨询 prompt",
         state_hooks=[],
+        write_hooks=[],
         skill_dir=Path("/tmp/product"),
     )
 
@@ -60,7 +62,7 @@ async def test_executor_injects_state_hooks(price_skill):
     with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
          patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x):
         executor = make_skill_executor(registry)
-        result = await executor(state)
+    result = await executor(state)
 
     # 验证 LLM 被调用时 prompt 包含注入的变量值
     call_args = mock_llm.invoke.call_args[0][0]
@@ -91,7 +93,7 @@ async def test_executor_increments_bargain_count(price_skill):
     with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
          patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x):
         executor = make_skill_executor(registry)
-        result = await executor(state)
+    result = await executor(state)
 
     assert result["bargain_count"] == 3
 
@@ -117,7 +119,7 @@ async def test_executor_no_bargain_count_for_product(product_skill):
     with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
          patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x):
         executor = make_skill_executor(registry)
-        result = await executor(state)
+    result = await executor(state)
 
     assert "bargain_count" not in result
 
@@ -140,9 +142,9 @@ async def test_executor_applies_safety_filter(product_skill):
         manual_mode=False,
     )
 
-    with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
-         patch("agents.nodes.skill_executor.check_safety", return_value="[安全提醒]"):
+    with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm):
         executor = make_skill_executor(registry)
+    with patch("agents.nodes.skill_executor.check_safety", return_value="[安全提醒]"):
         result = await executor(state)
 
     assert result["messages"][-1].content == "[安全提醒]"
@@ -189,7 +191,7 @@ async def test_executor_llm_error_returns_fallback(price_skill):
     with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
          patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x):
         executor = make_skill_executor(registry)
-        result = await executor(state)
+    result = await executor(state)
 
     assert len(result["messages"]) == 1
     assert isinstance(result["messages"][0], AIMessage)

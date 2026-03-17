@@ -8,11 +8,11 @@ from agents.skill_registry import Skill, SkillRegistry
 @pytest.fixture
 def skills_dir(tmp_path: Path) -> Path:
     """创建临时 skills 目录结构。"""
-    # price skill with state_hooks
+    # price skill with state_hooks and write_hooks
     price_dir = tmp_path / "price"
     price_dir.mkdir()
     (price_dir / "skill.md").write_text(
-        "---\nname: price\ndescription: 处理议价\nstate_hooks:\n  - bargain_count\n  - min_price\n---\n\n议价 prompt {bargain_count} {min_price}"
+        "---\nname: price\ndescription: 处理议价\nstate_hooks:\n  - bargain_count\n  - min_price\nwrite_hooks:\n  - bargain_count\n---\n\n议价 prompt {bargain_count} {min_price}"
     )
 
     # product skill without state_hooks
@@ -54,6 +54,20 @@ def test_skill_no_state_hooks(skills_dir: Path):
     registry = SkillRegistry(skills_dir)
     product = registry.get_skill("product")
     assert product.state_hooks == []
+
+
+def test_skill_write_hooks(skills_dir: Path):
+    """测试 write_hooks 正确解析。"""
+    registry = SkillRegistry(skills_dir)
+    price = registry.get_skill("price")
+    assert price.write_hooks == ["bargain_count"]
+
+
+def test_skill_no_write_hooks(skills_dir: Path):
+    """测试没有 write_hooks 时默认为空列表。"""
+    registry = SkillRegistry(skills_dir)
+    product = registry.get_skill("product")
+    assert product.write_hooks == []
 
 
 def test_skill_prompt_body(skills_dir: Path):

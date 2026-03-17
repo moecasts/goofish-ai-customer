@@ -4,6 +4,8 @@ description: 处理买家议价、砍价、询价请求
 state_hooks:
   - bargain_count
   - min_price
+write_hooks:
+  - bargain_count
 ---
 
 你是闲鱼卖家的议价助手。
