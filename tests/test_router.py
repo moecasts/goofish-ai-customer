@@ -17,6 +17,8 @@ class TestLangGraphRouter:
                 MagicMock(content="你好！这是一条测试回复。")
             ]
         }
+        # get_state is called synchronously; return None so existing_state defaults to {}
+        mock_graph.get_state = MagicMock(return_value=None)
         return mock_graph
 
     @pytest.fixture
@@ -41,7 +43,7 @@ class TestLangGraphRouter:
             bargain_count=1
         )
 
-        assert result == "你好！这是一条测试回复。"
+        assert result[0] == "你好！这是一条测试回复。"
         mock_graph.ainvoke.assert_called_once()
 
     @pytest.mark.asyncio
@@ -51,7 +53,7 @@ class TestLangGraphRouter:
 
         result = await router.route(user_msg="你好")
 
-        assert result == ""
+        assert result[0] == ""
 
     @pytest.mark.asyncio
     async def test_route_exception(self, router, mock_graph):
@@ -60,7 +62,7 @@ class TestLangGraphRouter:
 
         result = await router.route(user_msg="你好")
 
-        assert result == "卖家暂时离开了，回来马上回复！"
+        assert result[0] == "卖家暂时离开了，回来马上回复！"
 
     @pytest.mark.asyncio
     async def test_route_with_context(self, router, mock_graph):
@@ -76,7 +78,7 @@ class TestLangGraphRouter:
             context="用户之前问了库存问题"
         )
 
-        assert result == "好的，我知道了。"
+        assert result[0] == "好的，我知道了。"
 
     @pytest.mark.asyncio
     async def test_route_with_item_info(self, router, mock_graph):
@@ -95,7 +97,7 @@ class TestLangGraphRouter:
             bargain_count=1,
         )
 
-        assert result == "这个价格不贵，成色很好。"
+        assert result[0] == "这个价格不贵，成色很好。"
 
     @pytest.mark.asyncio
     async def test_session_isolation(self, router, mock_graph):
