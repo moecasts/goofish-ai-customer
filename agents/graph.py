@@ -1,6 +1,7 @@
 """Agent 状态图构建。"""
 
 import os
+from pathlib import Path
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -9,77 +10,46 @@ from langgraph.checkpoint.memory import MemorySaver
 from loguru import logger
 
 from agents.state import AgentState
-from agents.nodes import classify_node, price_node, product_node, default_node
+from agents.nodes import make_classify_node, make_skill_executor
+from agents.skill_registry import SkillRegistry
 from services.llm_client import LLMClient
+
+_SKILLS_DIR_DEFAULT = "config/skills"
 
 
 def route_intent(state: AgentState) -> str:
-    """根据意图路由到不同节点。"""
+    """no_reply 直接结束，其他全部走 skill_executor。"""
     intent = state.get("intent", "default") or "default"
-    logger.info(f"路由意图: {state.get('intent')} -> {intent}")
-
+    logger.info(f"路由意图: {intent}")
     if intent == "no_reply":
         return "no_reply"
-
-    return intent
-
-
-def check_bargain_continue(state: AgentState) -> str:
-    """检查是否继续议价。
-
-    注意：每次调用都会生成一次回复，然后结束。
-    下一轮议价需要用户新发送消息触发。
-    """
-    # 简化逻辑：每次只回复一次，不自动循环
-    # 用户想继续议价时会发送新消息
-    logger.info(
-        f"议价回复已生成 (bargain_count={state['bargain_count']})，等待用户下一条消息"
-    )
-    return "stop"
+    return "skill"
 
 
-def create_agent_graph():
+def create_agent_graph(skills_dir: str = _SKILLS_DIR_DEFAULT):
     """创建 Agent 状态图。"""
+    registry = SkillRegistry(Path(skills_dir))
+    logger.info(f"已加载 {len(registry.list_skills())} 个 skill: {[s.name for s in registry.list_skills()]}")
+
     workflow = StateGraph(AgentState)
 
-    # 添加节点
-    workflow.add_node("classify", classify_node)
-    workflow.add_node("price", price_node)
-    workflow.add_node("product", product_node)
-    workflow.add_node("default", default_node)
+    workflow.add_node("classify", make_classify_node(registry))
+    workflow.add_node("skill_executor", make_skill_executor(registry))
 
-    # 设置入口点
     workflow.set_entry_point("classify")
 
-    # 添加意图路由条件边
     workflow.add_conditional_edges(
         "classify",
         route_intent,
         {
-            "price": "price",
-            "product": "product",
-            "default": "default",
             "no_reply": END,
+            "skill": "skill_executor",
         },
     )
 
-    # 议价节点添加循环边
-    workflow.add_conditional_edges(
-        "price",
-        check_bargain_continue,
-        {
-            "continue": "price",
-            "stop": END,
-        },
-    )
-
-    # 其他节点直接结束
-    workflow.add_edge("product", END)
-    workflow.add_edge("default", END)
+    workflow.add_edge("skill_executor", END)
 
     logger.info("Agent 状态图构建完成")
-
-    # 配置 checkpointer（使用内存存储）
     checkpointer = MemorySaver()
     return workflow.compile(checkpointer=checkpointer)
 
@@ -87,9 +57,9 @@ def create_agent_graph():
 class LangGraphRouter:
     """LangGraph 路由器。"""
 
-    def __init__(self):
+    def __init__(self, skills_dir: str = _SKILLS_DIR_DEFAULT):
         """初始化路由器。"""
-        self.graph = create_agent_graph()
+        self.graph = create_agent_graph(skills_dir)
         self.llm_client = LLMClient()
         logger.info("LangGraphRouter 初始化完成")
 
@@ -132,13 +102,10 @@ class LangGraphRouter:
             existing_state = current_state.values if current_state else {}
 
             # 构建更新状态，保留 checkpointed 值
-            # 设计决策：只使用当前消息（price_prompt 要求"只回复用户最后一条消息，忽略之前的对话历史"）
             update_state: AgentState = {
-                "messages": [HumanMessage(content=user_msg)],  # 当前消息
+                "messages": [HumanMessage(content=user_msg)],
                 "user_id": user_id,
-                "bargain_count": existing_state.get(
-                    "bargain_count", bargain_count
-                ),  # 优先使用 checkpointed 值
+                "bargain_count": existing_state.get("bargain_count", bargain_count),
                 "item_info": {
                     "min_price": min_price,
                     "product_name": product_name,
@@ -147,13 +114,11 @@ class LangGraphRouter:
                     "item_desc": item_desc,
                     "context": context,
                 },
-                "intent": "",  # 重置以重新分类意图
-                "manual_mode": existing_state.get(
-                    "manual_mode", False
-                ),  # 保留 manual_mode 状态
+                "intent": "",
+                "manual_mode": existing_state.get("manual_mode", False),
             }
 
-            # 执行状态图（使用 checkpointed state 作为基础）
+            # 执行状态图
             result = await self.graph.ainvoke(update_state, config)
 
             # 提取 AI 回复和更新的 bargain_count
