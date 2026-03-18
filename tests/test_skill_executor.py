@@ -60,7 +60,9 @@ async def test_executor_injects_state_hooks(price_skill):
     )
 
     with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
-         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x):
+         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x), \
+         patch("agents.nodes.skill_executor._GLOBAL_RULES_PATH") as mock_rules_path:
+        mock_rules_path.read_text.return_value = ""
         executor = make_skill_executor(registry)
     result = await executor(state)
 
@@ -91,7 +93,9 @@ async def test_executor_increments_bargain_count(price_skill):
     )
 
     with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
-         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x):
+         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x), \
+         patch("agents.nodes.skill_executor._GLOBAL_RULES_PATH") as mock_rules_path:
+        mock_rules_path.read_text.return_value = ""
         executor = make_skill_executor(registry)
     result = await executor(state)
 
@@ -117,7 +121,9 @@ async def test_executor_no_bargain_count_for_product(product_skill):
     )
 
     with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
-         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x):
+         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x), \
+         patch("agents.nodes.skill_executor._GLOBAL_RULES_PATH") as mock_rules_path:
+        mock_rules_path.read_text.return_value = ""
         executor = make_skill_executor(registry)
     result = await executor(state)
 
@@ -142,7 +148,9 @@ async def test_executor_applies_safety_filter(product_skill):
         manual_mode=False,
     )
 
-    with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm):
+    with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
+         patch("agents.nodes.skill_executor._GLOBAL_RULES_PATH") as mock_rules_path:
+        mock_rules_path.read_text.return_value = ""
         executor = make_skill_executor(registry)
     with patch("agents.nodes.skill_executor.check_safety", return_value="[安全提醒]"):
         result = await executor(state)
@@ -165,7 +173,9 @@ async def test_executor_unknown_skill_falls_back_to_default(product_skill):
         manual_mode=False,
     )
 
-    executor = make_skill_executor(registry)
+    with patch("agents.nodes.skill_executor._GLOBAL_RULES_PATH") as mock_rules_path:
+        mock_rules_path.read_text.return_value = ""
+        executor = make_skill_executor(registry)
     result = await executor(state)
 
     assert len(result["messages"]) == 1
@@ -189,9 +199,75 @@ async def test_executor_llm_error_returns_fallback(price_skill):
     )
 
     with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
-         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x):
+         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x), \
+         patch("agents.nodes.skill_executor._GLOBAL_RULES_PATH") as mock_rules_path:
+        mock_rules_path.read_text.return_value = ""
         executor = make_skill_executor(registry)
     result = await executor(state)
 
     assert len(result["messages"]) == 1
     assert isinstance(result["messages"][0], AIMessage)
+
+
+@pytest.mark.asyncio
+async def test_executor_prepends_global_rules(product_skill):
+    """测试全局规则被拼接到 skill prompt 前面。"""
+    registry = make_mock_registry(product_skill)
+    mock_response = MagicMock()
+    mock_response.content = "这款商品..."
+    mock_llm = AsyncMock()
+    mock_llm.invoke.return_value = mock_response
+
+    state = AgentState(
+        messages=[HumanMessage(content="介绍一下商品")],
+        user_id="u1",
+        intent="product",
+        bargain_count=0,
+        item_info={},
+        manual_mode=False,
+    )
+
+    with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
+         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x), \
+         patch("agents.nodes.skill_executor._GLOBAL_RULES_PATH") as mock_rules_path:
+        mock_rules_path.read_text.return_value = "全局规则内容"
+        executor = make_skill_executor(registry)
+    await executor(state)
+
+    call_args = mock_llm.invoke.call_args[0][0]
+    system_msg = call_args[0]
+    assert isinstance(system_msg, SystemMessage)
+    assert system_msg.content.startswith("全局规则内容\n\n")
+    assert product_skill.prompt in system_msg.content
+
+
+@pytest.mark.asyncio
+async def test_executor_missing_rules_file_continues(product_skill):
+    """测试全局规则文件缺失时优雅降级。"""
+    registry = make_mock_registry(product_skill)
+    mock_response = MagicMock()
+    mock_response.content = "这款商品..."
+    mock_llm = AsyncMock()
+    mock_llm.invoke.return_value = mock_response
+
+    state = AgentState(
+        messages=[HumanMessage(content="介绍一下商品")],
+        user_id="u1",
+        intent="product",
+        bargain_count=0,
+        item_info={},
+        manual_mode=False,
+    )
+
+    with patch("agents.nodes.skill_executor.LLMClient", return_value=mock_llm), \
+         patch("agents.nodes.skill_executor.check_safety", side_effect=lambda x: x), \
+         patch("agents.nodes.skill_executor._GLOBAL_RULES_PATH") as mock_rules_path:
+        mock_rules_path.read_text.side_effect = FileNotFoundError
+        executor = make_skill_executor(registry)
+    await executor(state)
+
+    assert mock_llm.invoke.called
+    call_args = mock_llm.invoke.call_args[0][0]
+    system_msg = call_args[0]
+    assert isinstance(system_msg, SystemMessage)
+    assert system_msg.content == product_skill.prompt  # no prefix

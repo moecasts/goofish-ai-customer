@@ -1,6 +1,7 @@
 """通用 skill 执行节点。"""
 
 import re
+from pathlib import Path
 from typing import Callable
 from langchain_core.messages import AIMessage, SystemMessage
 from agents.state import AgentState
@@ -9,10 +10,18 @@ from services.llm_client import LLMClient
 from services.tools import check_safety
 from loguru import logger
 
+_GLOBAL_RULES_PATH = Path(__file__).parent.parent.parent / "config" / "rules" / "global.md"
+
 
 def make_skill_executor(registry: SkillRegistry) -> Callable:
     """工厂函数：创建绑定了 registry 的 skill_executor 节点函数。"""
     llm_client = LLMClient()
+
+    try:
+        global_rules = _GLOBAL_RULES_PATH.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        logger.warning(f"全局规则文件未找到: {_GLOBAL_RULES_PATH}，跳过全局规则注入")
+        global_rules = ""
 
     async def skill_executor_node(state: AgentState) -> AgentState:
         """通用 skill 执行节点：查找 skill → 注入变量 → 调用 LLM → 安全过滤 → 返回。"""
@@ -39,14 +48,16 @@ def make_skill_executor(registry: SkillRegistry) -> Callable:
             variables[hook] = str(value) if value is not None else ""
 
         # 2. 注入模板变量到 prompt
-        prompt = skill.prompt
+        skill_prompt = skill.prompt
         for key, value in variables.items():
-            prompt = prompt.replace(f"{{{key}}}", value)
+            skill_prompt = skill_prompt.replace(f"{{{key}}}", value)
 
         # 未替换的占位符记录警告
-        remaining = re.findall(r"\{(\w+)\}", prompt)
+        remaining = re.findall(r"\{(\w+)\}", skill_prompt)
         if remaining:
             logger.warning(f"skill '{intent}' prompt 中有未替换的变量: {remaining}")
+
+        prompt = f"{global_rules}\n\n{skill_prompt}" if global_rules else skill_prompt
 
         # 3. 调用 LLM
         messages = [SystemMessage(content=prompt), *state["messages"]]
